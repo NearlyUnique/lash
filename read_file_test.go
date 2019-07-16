@@ -19,7 +19,7 @@ func Test_read_whole_file(t *testing.T) {
 
 	session := lash.NewSession()
 	actualContent := session.
-		OpenRead(aFilename).
+		OpenFile(aFilename).
 		String()
 
 	require.NoError(t, session.Err())

@@ -2,6 +2,7 @@ package lash
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -38,7 +39,7 @@ func (s *Session) Curl(url string) *HTTPRequest {
 	serr := SessionErr{Type: "HTTPRequest"}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		s.err = serr.fail("Curl", err)
+		s.SetErr(serr.fail("Curl", err))
 	}
 	return &HTTPRequest{
 		serr:     serr,
@@ -87,13 +88,13 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 	var err error
 	r.response, err = cmd.Client.Do(cmd.req)
 	if err != nil {
-		cmd.session.err = cmd.serr.fail("Send", err)
+		cmd.session.SetErr(cmd.serr.fail("Send", err))
 		return r
 	}
 
 	if !isInList(r.response.StatusCode, cmd.statuses) {
 		err = fmt.Errorf("status %v not allowed", r.response.StatusCode)
-		cmd.session.err = cmd.serr.fail("Send", err)
+		cmd.session.SetErr(cmd.serr.fail("Send", err))
 		return r
 	}
 
@@ -101,19 +102,11 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 		defer func() { _ = r.response.Body.Close() }()
 		r.body, err = ioutil.ReadAll(r.response.Body)
 		if err != nil {
-			cmd.session.err = cmd.serr.fail("ReadBody", err)
+			cmd.session.SetErr(cmd.serr.fail("ReadBody", err))
 		}
 	}
 
 	return r
-}
-func isInList(search int, list []int) bool {
-	for _, s := range list {
-		if s == search {
-			return true
-		}
-	}
-	return false
 }
 
 // StatusCode of the request, will be zero if no valid status exists
@@ -142,4 +135,28 @@ func (r *HTTPResponse) BodyBytes() []byte {
 
 func (r *HTTPResponse) IsError() bool {
 	return r.session != nil && r.session.err != nil
+}
+
+// BodyJSON puts the response body into the passed in type
+// returns false if no body
+func (r *HTTPResponse) FromJSON(buf interface{}) bool {
+	if r == nil || r.body == nil {
+		return false
+	}
+	if err := json.Unmarshal(r.body, buf); err != nil {
+		r.session.SetErr(&SessionErr{Type: "HTTPResponse", Action: "FromJSON", Err: err})
+		return false
+	}
+
+	return true
+
+}
+
+func isInList(search int, list []int) bool {
+	for _, s := range list {
+		if s == search {
+			return true
+		}
+	}
+	return false
 }

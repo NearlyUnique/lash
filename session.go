@@ -1,6 +1,7 @@
 package lash
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -69,9 +70,46 @@ func (s *Session) Err() error {
 	return s.err
 }
 
+// SetErr is the raw session error if any
+func (s *Session) SetErr(err error) {
+	if s == nil || err == nil {
+		return
+	}
+	s.err = err
+	if s.onErr != nil {
+		s.onErr(err)
+	}
+}
+
 // ClearError removes the raw session error if any
 func (s *Session) ClearError() {
 	s.err = nil
+}
+
+// AsJson turns a map or struct (or json-able) thing into json buffer
+func AsJson(v interface{}) []byte {
+	s := DefaultSession
+	if s == nil {
+		s = NewSession()
+	}
+	return s.AsJson(v)
+}
+
+// AsJson turns a map or struct (or json-able) thing into json buffer
+func (s *Session) AsJson(v interface{}) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		s.SetErr(&SessionErr{Type: "Session", Action: "AsJSON", Err: err})
+		return nil
+	}
+	return b
+}
+
+// Env operations
+func (s *Session) Env() RequireEnv {
+	return RequireEnv{
+		session: s,
+	}
 }
 
 // Terminate on error, with error code 1

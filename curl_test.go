@@ -46,6 +46,26 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, "some content", resp.BodyString())
 		assert.Equal(t, []byte("some content"), resp.BodyBytes())
 	})
+	t.Run("body can be read as json to struct", func(t *testing.T) {
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"name":"any-name","count":42}`))
+		})
+		defer ts.Close()
+
+		var actual struct {
+			Name  string
+			Count int
+		}
+		session := lash.NewSession()
+		session.
+			Curl(ts.URL + "/any").
+			Response().
+			FromJSON(&actual)
+
+		require.NoError(t, session.Err())
+		assert.Equal(t, "any-name", actual.Name)
+		assert.Equal(t, 42, actual.Count)
+	})
 	t.Run("can limit which statuses count as error", func(t *testing.T) {
 
 		testData := []struct {
