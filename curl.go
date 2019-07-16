@@ -1,6 +1,7 @@
 package lash
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -48,20 +49,26 @@ func (s *Session) Curl(url string) *HTTPRequest {
 }
 
 // Post method will be used
-func (cmd *HTTPRequest) Post() *HTTPRequest {
-	cmd.req.Method = http.MethodPost
-	return cmd
+func (cmd *HTTPRequest) Post(body []byte) *HTTPRequest {
+	return cmd.Method(http.MethodPost, body)
 }
 
 // Put method will be used
-func (cmd *HTTPRequest) Put() *HTTPRequest {
-	cmd.req.Method = http.MethodPut
-	return cmd
+func (cmd *HTTPRequest) Put(body []byte) *HTTPRequest {
+	return cmd.Method(http.MethodPut, body)
 }
 
 // Delete method will be used
 func (cmd *HTTPRequest) Delete() *HTTPRequest {
-	cmd.req.Method = http.MethodDelete
+	return cmd.Method(http.MethodDelete, nil)
+}
+
+// Method can be any
+func (cmd *HTTPRequest) Method(method string, body []byte) *HTTPRequest {
+	cmd.req.Method = method
+	if body != nil {
+		cmd.req.Body = ioutil.NopCloser(bytes.NewReader(body))
+	}
 	return cmd
 }
 

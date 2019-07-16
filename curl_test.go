@@ -1,23 +1,26 @@
 package lash_test
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/NearlyUnique/lash"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_http_requests(t *testing.T) {
-	var handler http.HandlerFunc
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler(w, r)
-	}))
-	defer ts.Close()
 
 	t.Run("default method is GET", func(t *testing.T) {
-		handler = func(w http.ResponseWriter, r *http.Request) {}
+		var method string
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			method = r.Method
+		})
+		defer ts.Close()
+
 		resp := lash.
 			Curl(ts.URL + "/any").
 			Response()
@@ -25,18 +28,21 @@ func Test_http_requests(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.NoError(t, lash.DefaultSession.Err())
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
+		assert.Equal(t, "GET", method)
 	})
 	t.Run("body can be read as string or byte slice", func(t *testing.T) {
-
-		handler = func(w http.ResponseWriter, r *http.Request) {
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`some content`))
-		}
-		resp := lash.
+		})
+		defer ts.Close()
+
+		session := lash.NewSession()
+		resp := session.
 			Curl(ts.URL + "/any").
 			Response()
 
 		assert.NotNil(t, resp)
-		assert.NoError(t, lash.DefaultSession.Err())
+		assert.NoError(t, session.Err())
 		assert.Equal(t, "some content", resp.BodyString())
 		assert.Equal(t, []byte("some content"), resp.BodyBytes())
 	})
@@ -51,12 +57,14 @@ func Test_http_requests(t *testing.T) {
 			{"404 in the list", 404, false},
 			{"418 is not in the list", 418, true},
 		}
-		for _, td := range testData {
-			handler = func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(td.status)
-				_, _ = w.Write([]byte(`some content`))
+		var currentStatus int
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(currentStatus)
+		})
+		defer ts.Close()
 
-			}
+		for _, td := range testData {
+			currentStatus = td.status
 
 			resp := lash.
 				Curl(ts.URL+"/any").
@@ -67,5 +75,50 @@ func Test_http_requests(t *testing.T) {
 			assert.Equal(t, td.isError, resp.IsError(), td.name)
 		}
 	})
+	t.Run("can send a body", func(t *testing.T) {
+		var actualBody []byte
+		var method string
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			method = r.Method
+			buf, err := ioutil.ReadAll(r.Body)
+			require.NoError(t, err)
+			actualBody = buf
+			defer func() { _ = r.Body.Close() }()
+		})
+		defer ts.Close()
 
+		t.Run("with PUT", func(t *testing.T) {
+			session := lash.NewSession()
+			resp := session.
+				Curl(ts.URL + "/any").
+				Put([]byte("some content")).
+				Response()
+
+			require.NoError(t, session.Err())
+
+			assert.Equal(t, "PUT", method)
+			assert.Equal(t, "some content", string(actualBody))
+			assert.Equal(t, 200, resp.StatusCode())
+		})
+		t.Run("with POST", func(t *testing.T) {
+			session := lash.NewSession()
+			resp := session.
+				Curl(ts.URL + "/any").
+				Post([]byte("more content")).
+				Response()
+
+			require.NoError(t, session.Err())
+
+			assert.Equal(t, "POST", method)
+			assert.Equal(t, "more content", string(actualBody))
+			assert.Equal(t, 200, resp.StatusCode())
+		})
+	})
+}
+
+func makeTestServer(handler http.HandlerFunc) *httptest.Server {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	return ts
 }

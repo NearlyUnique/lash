@@ -22,6 +22,7 @@ func Test_read_whole_file(t *testing.T) {
 		OpenRead(aFilename).
 		String()
 
+	require.NoError(t, session.Err())
 	assert.Equal(t, theContent, actualContent)
 }
 
