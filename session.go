@@ -112,6 +112,22 @@ func (s *Session) Env() RequireEnv {
 	}
 }
 
+//func (s *Session) Flags() RequireFlag {
+//	return RequireFlag{
+//		session: s,
+//		Flags:   flag.FlagSet{},
+//	}
+//}
+
+// Args to the app
+func (s *Session) Args() RequireArg {
+	return RequireArg{
+		session: s,
+		Args:    os.Args,
+	}
+
+}
+
 // Terminate on error, with error code 1
 func Terminate(err error) {
 	if err == nil {

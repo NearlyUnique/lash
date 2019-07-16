@@ -31,3 +31,27 @@ func Test_env_vars(t *testing.T) {
 		assert.NoError(t, session.Err())
 	})
 }
+
+func Test_flags(t *testing.T) {
+	t.Run("flags can be required", func(t *testing.T) {
+		session := lash.NewSession()
+		session.OnError(lash.Ignore)
+
+		args := session.Args()
+
+		// Args are automatically set  by calling Args above
+		require.NotEmpty(t, args)
+		// overwrite for the test
+		args.Args = []string{"the-program", "first"}
+
+		args.Require(1, "helpful text 1")
+		assert.NoError(t, session.Err())
+
+		args.Require(2, "helpful text 2")
+		assert.Error(t, session.Err())
+
+		assert.Contains(t, session.ErrorString(), "Arg:Require:missing")
+		assert.Contains(t, session.ErrorString(), "index '2'")
+		assert.Contains(t, session.ErrorString(), "helpful text 2")
+	})
+}
