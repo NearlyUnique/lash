@@ -25,6 +25,8 @@ type (
 	}
 )
 
+const AnyHTTPStatus = 9999
+
 // Curl wrapper for simple http client, uses the default session
 func Curl(url string) *HTTPRequest {
 	s := DefaultSession
@@ -166,7 +168,7 @@ func (r *HTTPResponse) FromJSON(buf interface{}) bool {
 
 func isInList(search int, list []int) bool {
 	for _, s := range list {
-		if s == search {
+		if s == AnyHTTPStatus || s == search {
 			return true
 		}
 	}

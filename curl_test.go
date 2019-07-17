@@ -92,6 +92,29 @@ func Test_http_requests(t *testing.T) {
 
 			assert.Equal(t, td.isError, lash.DefaultSession.IsError(), td.name)
 			assert.Equal(t, td.isError, resp.IsError(), td.name)
+			assert.Equal(t, td.status, resp.StatusCode())
+		}
+	})
+	t.Run("can allow all http status codes to be non-error", func(t *testing.T) {
+		testData := []int{
+			200, 201, 400, 404, 500, 501,
+		}
+		var currentStatus int
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(currentStatus)
+		})
+		defer ts.Close()
+		session := lash.NewSession()
+		for _, status := range testData {
+			currentStatus = status
+
+			resp := session.
+				Curl(ts.URL + "/any").
+				AllowResponses(lash.AnyHTTPStatus).
+				Response()
+
+			assert.NoError(t, session.Err())
+			assert.Equal(t, status, resp.StatusCode())
 		}
 	})
 	t.Run("can send a body", func(t *testing.T) {
