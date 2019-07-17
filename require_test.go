@@ -25,8 +25,12 @@ func Test_env_vars(t *testing.T) {
 		session := lash.NewSession()
 		session.OnError(lash.Ignore)
 		require.NoError(t, os.Setenv("existing-key", "a-value"))
+		require.NoError(t, os.Setenv("another-key", "another-value"))
 
-		session.Env().Require("existing-key", "helpful message")
+		session.
+			Env().
+			Require("existing-key", "helpful message").
+			Require("another-key", "helpful message")
 
 		assert.NoError(t, session.Err())
 	})

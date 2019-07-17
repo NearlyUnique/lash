@@ -23,7 +23,7 @@ type (
 )
 
 // Require that en env var has a value, error contains the description
-func (r RequireEnv) Require(key, description string) {
+func (r RequireEnv) Require(key, description string) RequireEnv {
 	if v := os.Getenv(key); len(v) == 0 {
 		r.session.SetErr(&SessionErr{
 			Type:   "Env",
@@ -31,6 +31,7 @@ func (r RequireEnv) Require(key, description string) {
 			Err:    fmt.Errorf("missing '%s': %s", key, description),
 		})
 	}
+	return r
 }
 
 // Require tests args as per os.Args 0th arg is program name
