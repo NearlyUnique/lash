@@ -123,6 +123,14 @@ func (cmd *HTTPRequest) AddHeader(name, value string) *HTTPRequest {
 	return cmd
 }
 
+// CommonFunc so allow simplifying common values
+func (cmd *HTTPRequest) CommonFunc(custom func(r *HTTPRequest)) *HTTPRequest {
+	if custom != nil {
+		custom(cmd)
+	}
+	return cmd
+}
+
 // StatusCode of the request, will be zero if no valid status exists
 func (r *HTTPResponse) StatusCode() int {
 	if r == nil || r.response == nil {

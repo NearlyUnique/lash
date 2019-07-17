@@ -183,6 +183,26 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, 1, called)
 		require.NoError(t, session.Err())
 	})
+	t.Run("can make a func to add common headers", func(t *testing.T) {
+		session := lash.NewSession()
+
+		custom := func(r *lash.HTTPRequest) {
+			r.
+				Header("key1", "value1").
+				Header("key2", "value2")
+		}
+
+		request := session.
+			Curl("https://example.com").
+			CommonFunc(custom).
+			Header("key0", "value0")
+
+		assert.Equal(t, "value0", request.Req.Header.Get("Key0"))
+		assert.Equal(t, "value1", request.Req.Header.Get("Key1"))
+		assert.Equal(t, "value2", request.Req.Header.Get("Key2"))
+		require.NoError(t, session.Err())
+	})
+
 	//t.Run("well known headers have helper functions", func(t *testing.T) {
 	//	session := lash.NewSession()
 	//	request := session.
