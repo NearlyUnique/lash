@@ -75,6 +75,10 @@ func (s *Session) SetErr(err error) {
 	if s == nil || err == nil {
 		return
 	}
+	serr, ok := err.(*SessionErr)
+	if ok && serr.Err == nil {
+		return
+	}
 	s.err = err
 	if s.onErr != nil {
 		s.onErr(err)

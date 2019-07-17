@@ -183,13 +183,13 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, 1, called)
 		require.NoError(t, session.Err())
 	})
-	t.Run("can make a func to add common headers", func(t *testing.T) {
+	t.Run("can make a func to add common settings", func(t *testing.T) {
 		session := lash.NewSession()
 
 		custom := func(r *lash.HTTPRequest) {
-			r.
-				Header("key1", "value1").
-				Header("key2", "value2")
+			r.Header("key1", "value1").
+				Header("key2", "value2").
+				AllowResponses(200)
 		}
 
 		request := session.

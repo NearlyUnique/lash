@@ -12,6 +12,7 @@ type (
 	File struct {
 		path    string
 		session *Session
+		file    *os.File
 	}
 )
 
@@ -74,16 +75,44 @@ func (f *File) AppendLine(s string) {
 	if f.session != nil && f.session.err != nil {
 		return
 	}
-	file, err := os.OpenFile(f.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f.open()
+
+	_, err := fmt.Fprintln(f.file, s)
 	if err != nil {
 		f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
 		return
 	}
-	defer func() { _ = file.Close() }()
+}
 
-	_, err = fmt.Fprintln(file, s)
-	if err != nil {
-		f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
+func (f *File) Truncate() *File {
+	f.open()
+	err := &SessionErr{Type: "File", Action: "Truncate"}
+	err.Err = f.file.Truncate(0)
+	f.session.SetErr(err)
+
+	_, err.Err = f.file.Seek(0, 0)
+	f.session.SetErr(err)
+	return f
+}
+
+// close the internal file if it is open
+func (f *File) Close() {
+	if f == nil || f.file == nil {
 		return
+	}
+	err := f.file.Close()
+	if err != nil {
+		f.session.SetErr(&SessionErr{Type: "File", Action: "Close", Err: err})
+	}
+}
+
+func (f *File) open() {
+	var err error
+	if f.file == nil {
+		f.file, err = os.OpenFile(f.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
+			return
+		}
 	}
 }
