@@ -42,16 +42,18 @@ func Test_flags(t *testing.T) {
 		// Args are automatically set  by calling Args above
 		require.NotEmpty(t, args)
 		// overwrite for the test
-		args.Args = []string{"the-program", "first"}
+		args.Args = []string{"the-program", "first", "second"}
 
-		args.Require(1, "helpful text 1")
+		args.
+			Require(1, "helpful text 1").
+			Require(2, "helpful text 2")
 		assert.NoError(t, session.Err())
 
-		args.Require(2, "helpful text 2")
+		args.Require(3, "helpful text 3")
 		assert.Error(t, session.Err())
 
 		assert.Contains(t, session.ErrorString(), "Arg:Require:missing")
-		assert.Contains(t, session.ErrorString(), "index '2'")
-		assert.Contains(t, session.ErrorString(), "helpful text 2")
+		assert.Contains(t, session.ErrorString(), "index '3'")
+		assert.Contains(t, session.ErrorString(), "helpful text 3")
 	})
 }

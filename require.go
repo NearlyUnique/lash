@@ -34,7 +34,7 @@ func (r RequireEnv) Require(key, description string) {
 }
 
 // Require tests args as per os.Args 0th arg is program name
-func (r RequireArg) Require(index int, description string) {
+func (r RequireArg) Require(index int, description string) RequireArg {
 	if len(r.Args)-1 < index {
 		r.session.SetErr(&SessionErr{
 			Type:   "Arg",
@@ -42,4 +42,5 @@ func (r RequireArg) Require(index int, description string) {
 			Err:    fmt.Errorf("missing index '%d': %s", index, description),
 		})
 	}
+	return r
 }
