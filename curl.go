@@ -13,7 +13,7 @@ type (
 	HTTPRequest struct {
 		session  *Session
 		serr     SessionErr
-		req      *http.Request
+		Req      *http.Request
 		statuses []int
 		Client   *http.Client
 	}
@@ -44,7 +44,7 @@ func (s *Session) Curl(url string) *HTTPRequest {
 	return &HTTPRequest{
 		serr:     serr,
 		session:  s,
-		req:      req,
+		Req:      req,
 		statuses: []int{200, 201, 202, 204},
 	}
 }
@@ -66,9 +66,9 @@ func (cmd *HTTPRequest) Delete() *HTTPRequest {
 
 // Method can be any
 func (cmd *HTTPRequest) Method(method string, body []byte) *HTTPRequest {
-	cmd.req.Method = method
+	cmd.Req.Method = method
 	if body != nil {
-		cmd.req.Body = ioutil.NopCloser(bytes.NewReader(body))
+		cmd.Req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	}
 	return cmd
 }
@@ -86,7 +86,7 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 		cmd.Client = &http.Client{}
 	}
 	var err error
-	r.response, err = cmd.Client.Do(cmd.req)
+	r.response, err = cmd.Client.Do(cmd.Req)
 	if err != nil {
 		cmd.session.SetErr(cmd.serr.fail("Send", err))
 		return r
@@ -107,6 +107,18 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 	}
 
 	return r
+}
+
+// Header can be set, this overwrites and previous value
+func (cmd *HTTPRequest) Header(name, value string) *HTTPRequest {
+	cmd.Req.Header.Set(name, value)
+	return cmd
+}
+
+// AddHeader can be set, this allows multiple values for the same header
+func (cmd *HTTPRequest) AddHeader(name, value string) *HTTPRequest {
+	cmd.Req.Header.Add(name, value)
+	return cmd
 }
 
 // StatusCode of the request, will be zero if no valid status exists

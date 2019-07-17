@@ -6,15 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/NearlyUnique/lash"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_http_requests(t *testing.T) {
 
-	t.Run("default method is GET", func(t *testing.T) {
+	t.Run("default request method is GET", func(t *testing.T) {
 		var method string
 		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
 			method = r.Method
@@ -30,7 +29,7 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Equal(t, "GET", method)
 	})
-	t.Run("body can be read as string or byte slice", func(t *testing.T) {
+	t.Run("response body can be read as string or byte slice", func(t *testing.T) {
 		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`some content`))
 		})
@@ -46,7 +45,7 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, "some content", resp.BodyString())
 		assert.Equal(t, []byte("some content"), resp.BodyBytes())
 	})
-	t.Run("body can be read as json to struct", func(t *testing.T) {
+	t.Run("response body can be read as json to struct", func(t *testing.T) {
 		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"name":"any-name","count":42}`))
 		})
@@ -66,7 +65,7 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, "any-name", actual.Name)
 		assert.Equal(t, 42, actual.Count)
 	})
-	t.Run("can limit which statuses count as error", func(t *testing.T) {
+	t.Run("can limit which http response statuses count as error", func(t *testing.T) {
 
 		testData := []struct {
 			name    string
@@ -134,6 +133,49 @@ func Test_http_requests(t *testing.T) {
 			assert.Equal(t, 200, resp.StatusCode())
 		})
 	})
+	t.Run("request can contain any header", func(t *testing.T) {
+		called := 0
+		ts := makeTestServer(func(w http.ResponseWriter, r *http.Request) {
+			called++
+
+			// note when accessing the map directly the canonical casing is required
+			assert.Equal(t, "actual-value", r.Header.Get("header-name"))
+			assert.Equal(t, 1, len(r.Header["Header-Name"]))
+
+			assert.Equal(t, 2, len(r.Header["Header-Set"]))
+			assert.Contains(t, r.Header["Header-Set"], "one")
+			assert.Contains(t, r.Header["Header-Set"], "two")
+
+		})
+
+		session := lash.NewSession()
+		_ = session.
+			Curl(ts.URL+"/any").
+			Header("header-name", "this will get overridden").
+			Header("header-name", "actual-value").
+			Header("header-set", "one").
+			AddHeader("header-set", "two").
+			Response()
+
+		assert.Equal(t, 1, called)
+		require.NoError(t, session.Err())
+	})
+	//t.Run("well known headers have helper functions", func(t *testing.T) {
+	//	session := lash.NewSession()
+	//	request := session.
+	//		Curl("http://example.com").
+	//		Header("", "")
+	//		//Authorization(lash.AuthzBearer, "some-token").
+	//		//ContentType(lash.ApplicationJSON).
+	//		//Accept(lash.ApplicationJSON).
+	//		//AcceptLang(language.English).
+	//		//UserAgent("some-user-agent")
+	//
+	//	assert.Equal(t, "Bearer some-token", request.Req.Header.Get("authorization"))
+	//	assert.Equal(t, "application/json", request.Req.Header.Get("content-type"))
+	//	assert.Equal(t, "application/json", request.Req.Header.Get("accept"))
+	//	assert.Equal(t, "some-user-agent", request.Req.Header.Get("user-agent"))
+	//})
 }
 
 func makeTestServer(handler http.HandlerFunc) *httptest.Server {
