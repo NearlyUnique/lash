@@ -3,6 +3,7 @@ package lash_test
 import (
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/NearlyUnique/lash"
@@ -46,6 +47,7 @@ func Test_can_append(t *testing.T) {
 
 	})
 }
+
 func Test_can_truncate_a_file(t *testing.T) {
 	const aFilename = "aFilename.txt"
 	require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
@@ -60,4 +62,34 @@ func Test_can_truncate_a_file(t *testing.T) {
 	actual, err := ioutil.ReadFile(aFilename)
 	assert.NoError(t, err)
 	assert.Equal(t, string(actual), "some line\n")
+}
+
+func Test_can_append_concurrently_via_channel(t *testing.T) {
+	const aFilename = "aFilename.txt"
+	defer func() { _ = os.Remove(aFilename) }()
+
+	session := lash.NewSession()
+
+	appender := session.
+		OpenFile(aFilename).
+		Truncate().
+		Appender()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		// both are equivalent
+		appender.Ch() <- "any line"
+		appender.AppendLine("last line")
+		wg.Done()
+	}()
+
+	wg.Wait() // MUST finish YOUR work before you close the channel
+
+	appender.Close()
+
+	actual, err := ioutil.ReadFile(aFilename)
+	assert.NoError(t, err)
+	assert.Equal(t, "any line\nlast line\n", string(actual))
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 )
 
 type (
@@ -13,6 +14,16 @@ type (
 		path    string
 		session *Session
 		file    *os.File
+		ch      chan string
+	}
+	fileAppender struct {
+		file *File
+		wg   *sync.WaitGroup
+	}
+	FileAppender interface {
+		Ch() chan<- string
+		AppendLine(line string)
+		Close()
 	}
 )
 
@@ -84,6 +95,7 @@ func (f *File) AppendLine(s string) {
 	}
 }
 
+//Truncate a file to zero length
 func (f *File) Truncate() *File {
 	f.open()
 	err := &SessionErr{Type: "File", Action: "Truncate"}
@@ -93,6 +105,23 @@ func (f *File) Truncate() *File {
 	_, err.Err = f.file.Seek(0, 0)
 	f.session.SetErr(err)
 	return f
+}
+
+//Appender channel to append lines to and a func to call when finished
+func (f *File) Appender() FileAppender {
+	if f.ch == nil {
+		f.ch = make(chan string)
+	}
+	a := fileAppender{file: f, wg: &sync.WaitGroup{}}
+	a.wg.Add(1)
+	go func() {
+		for line := range a.file.ch {
+			a.file.AppendLine(line)
+		}
+		a.wg.Done()
+	}()
+
+	return a
 }
 
 // close the internal file if it is open
@@ -114,5 +143,24 @@ func (f *File) open() {
 			f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
 			return
 		}
+	}
+}
+
+func (a fileAppender) Ch() chan<- string {
+	return a.file.ch
+}
+
+func (a fileAppender) AppendLine(line string) {
+	a.file.ch <- line
+}
+
+func (a fileAppender) Close() {
+	if a.file.ch != nil {
+		close(a.file.ch)
+		a.wg.Wait()
+	}
+
+	if a.file != nil {
+		a.file.Close()
 	}
 }

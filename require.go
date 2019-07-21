@@ -34,6 +34,17 @@ func (r RequireEnv) Require(key, description string) RequireEnv {
 	return r
 }
 
+func (r RequireEnv) Default(key, defaultValue string) RequireEnv {
+	if os.Getenv(key) == "" {
+		r.session.SetErr(&SessionErr{
+			Type:   "Env",
+			Action: "SetDefault",
+			Err:    os.Setenv(key, defaultValue),
+		})
+	}
+	return r
+}
+
 // Require tests args as per os.Args 0th arg is program name
 func (r RequireArg) Require(index int, description string) RequireArg {
 	if len(r.Args)-1 < index {

@@ -21,10 +21,12 @@ func Test_env_vars_can_be_expanded(t *testing.T) {
 
 	assert.Equal(t, "before value0value1 (value2) value3 after", actual)
 }
+
 func Test_when_no_expansions_are_supplied_EnvStr_is_identity_function(t *testing.T) {
 	assert.Equal(t, "no change", lash.EnvStr("no change"))
 	assert.Equal(t, "", lash.EnvStr(""))
 }
+
 func Test_env_var_expansion_can_use_indexed_argument_values(t *testing.T) {
 	a := someType{}
 	actual := lash.EnvStr("$0, $1$2[$3]", 10, "any", true, a)

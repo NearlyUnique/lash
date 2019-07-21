@@ -28,18 +28,18 @@ type (
 const AnyHTTPStatus = 9999
 
 // Curl wrapper for simple http client, uses the default session
-func Curl(url string) *HTTPRequest {
+func Curl(url string, args ...interface{}) *HTTPRequest {
 	s := DefaultSession
 	if s == nil {
 		s = NewSession()
 	}
-	return s.Curl(url)
+	return s.Curl(url, args...)
 }
 
 // Curl for this session
-func (s *Session) Curl(url string) *HTTPRequest {
+func (s *Session) Curl(url string, args ...interface{}) *HTTPRequest {
 	serr := SessionErr{Type: "HTTPRequest"}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", EnvStr(url, args...), nil)
 	if err != nil {
 		s.SetErr(serr.fail("Curl", err))
 	}
@@ -112,14 +112,14 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 }
 
 // Header can be set, this overwrites and previous value
-func (cmd *HTTPRequest) Header(name, value string) *HTTPRequest {
-	cmd.Req.Header.Set(name, value)
+func (cmd *HTTPRequest) Header(name, value string, args ...interface{}) *HTTPRequest {
+	cmd.Req.Header.Set(name, EnvStr(value, args...))
 	return cmd
 }
 
 // AddHeader can be set, this allows multiple values for the same header
-func (cmd *HTTPRequest) AddHeader(name, value string) *HTTPRequest {
-	cmd.Req.Header.Add(name, value)
+func (cmd *HTTPRequest) AddHeader(name, value string, args ...interface{}) *HTTPRequest {
+	cmd.Req.Header.Add(name, EnvStr(value, args...))
 	return cmd
 }
 

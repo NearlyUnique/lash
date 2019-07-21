@@ -34,6 +34,27 @@ func Test_env_vars(t *testing.T) {
 
 		assert.NoError(t, session.Err())
 	})
+	t.Run("where a default is set, missing env vars are set for the process", func(t *testing.T) {
+		session := lash.NewSession()
+		assert.Empty(t, os.Getenv("some-key"))
+		session.
+			Env().
+			Default("some-key", "some-value")
+
+		assert.Equal(t, "some-value", os.Getenv("some-key"))
+	})
+	t.Run("where a default is set, existing env vars are not overridden for the process", func(t *testing.T) {
+		session := lash.NewSession()
+
+		require.NoError(t, os.Setenv("some-key", "existing-value"))
+		session.
+			Env().
+			Default("some-key", "some-value").
+			Default("other-key", "other-value")
+
+		assert.Equal(t, "existing-value", os.Getenv("some-key"))
+		assert.Equal(t, "other-value", os.Getenv("other-key"))
+	})
 }
 
 func Test_flags(t *testing.T) {

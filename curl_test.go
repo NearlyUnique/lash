@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/NearlyUnique/lash"
@@ -200,6 +201,36 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, "value0", request.Req.Header.Get("Key0"))
 		assert.Equal(t, "value1", request.Req.Header.Get("Key1"))
 		assert.Equal(t, "value2", request.Req.Header.Get("Key2"))
+		require.NoError(t, session.Err())
+	})
+	t.Run("env vars can be in the url", func(t *testing.T) {
+		session := lash.NewSession()
+
+		require.NoError(t, os.Setenv("url_env_test", "example.com"))
+		request := session.Curl("https://$url_env_test/one/$0", 2)
+
+		assert.Equal(t, "https://example.com/one/2", request.Req.URL.String())
+		require.NoError(t, session.Err())
+
+		request = lash.Curl("https://www.$url_env_test/two/$0", 1)
+
+		assert.Equal(t, "https://www.example.com/two/1", request.Req.URL.String())
+		require.NoError(t, session.Err())
+	})
+	t.Run("env vars can be in the header values", func(t *testing.T) {
+		session := lash.NewSession()
+
+		require.NoError(t, os.Setenv("h1", "value one"))
+		require.NoError(t, os.Setenv("h2_2", "second"))
+
+		request := session.Curl("https://example.com").
+			Header("h1", "$h1").
+			Header("h2", "x-$0 $1", "one", 2).
+			AddHeader("h2", "$h2_2:$0", "any")
+
+		assert.Equal(t, "value one", request.Req.Header.Get("H1"))
+		assert.Contains(t, request.Req.Header["H2"], "x-one 2")
+		assert.Contains(t, request.Req.Header["H2"], "second:any")
 		require.NoError(t, session.Err())
 	})
 
