@@ -39,7 +39,7 @@ func Curl(url string, args ...interface{}) *HTTPRequest {
 // Curl for this session
 func (s *Session) Curl(url string, args ...interface{}) *HTTPRequest {
 	serr := SessionErr{Type: "HTTPRequest"}
-	req, err := http.NewRequest("GET", EnvStr(url, args...), nil)
+	req, err := http.NewRequest("GET", s.EnvStr(url, args...), nil)
 	if err != nil {
 		s.SetErr(serr.fail("Curl", err))
 	}
@@ -113,13 +113,13 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 
 // Header can be set, this overwrites and previous value
 func (cmd *HTTPRequest) Header(name, value string, args ...interface{}) *HTTPRequest {
-	cmd.Req.Header.Set(name, EnvStr(value, args...))
+	cmd.Req.Header.Set(name, cmd.session.EnvStr(value, args...))
 	return cmd
 }
 
 // AddHeader can be set, this allows multiple values for the same header
 func (cmd *HTTPRequest) AddHeader(name, value string, args ...interface{}) *HTTPRequest {
-	cmd.Req.Header.Add(name, EnvStr(value, args...))
+	cmd.Req.Header.Add(name, cmd.session.EnvStr(value, args...))
 	return cmd
 }
 

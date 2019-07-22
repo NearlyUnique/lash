@@ -44,7 +44,24 @@ func Test_can_append(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, string(actual), "line 1\na line\n")
+	})
+	t.Run("append line supports EnvStr", func(t *testing.T) {
+		const aFilename = "aFilename.txt"
 
+		require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
+		defer func() { _ = os.Remove(aFilename) }()
+
+		session := lash.NewSession()
+		require.NoError(t, os.Setenv("some_env", "some value"))
+
+		session.OpenFile(aFilename).Truncate().AppendLine("$some_env $0", 99)
+
+		require.NoError(t, session.Err())
+
+		actual, err := ioutil.ReadFile(aFilename)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "some value 99\n", string(actual))
 	})
 }
 
@@ -78,10 +95,12 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	require.NoError(t, os.Setenv("some_env", "env value"))
+
 	go func() {
 		// both are equivalent
 		appender.Ch() <- "any line"
-		appender.AppendLine("last line")
+		appender.AppendLine("last line $some_env ($0)", "a string")
 		wg.Done()
 	}()
 
@@ -91,5 +110,5 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 
 	actual, err := ioutil.ReadFile(aFilename)
 	assert.NoError(t, err)
-	assert.Equal(t, "any line\nlast line\n", string(actual))
+	assert.Equal(t, "any line\nlast line env value (a string)\n", string(actual))
 }

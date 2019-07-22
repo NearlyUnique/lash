@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+
+	"golang.org/x/xerrors"
 )
 
 type (
@@ -22,25 +24,25 @@ type (
 	}
 	FileAppender interface {
 		Ch() chan<- string
-		AppendLine(line string)
+		AppendLine(line string, args ...interface{})
 		Close()
 	}
 )
 
 // OpenFile and do something with it
-func OpenRead(name string) *File {
+func OpenRead(name string, args ...interface{}) *File {
 	s := DefaultSession
 	if s == nil {
 		s = NewSession()
 	}
-	return s.OpenFile(name)
+	return s.OpenFile(name, args...)
 }
 
 // OpenFile and do something with it
-func (s *Session) OpenFile(name string) *File {
+func (s *Session) OpenFile(name string, args ...interface{}) *File {
 	return &File{
 		session: s,
-		path:    name,
+		path:    s.EnvStr(name, args...),
 	}
 }
 
@@ -51,7 +53,7 @@ func (f *File) String() string {
 	}
 	b, err := ioutil.ReadFile(f.path)
 	if err != nil {
-		f.session.SetErr(&SessionErr{Type: "File", Action: "String", Err: err})
+		f.session.SetErr(&SessionErr{Type: "File", Action: "String", Err: xerrors.Errorf("path '%s': %w", f.path, err)})
 		return ""
 	}
 	return string(b)
@@ -82,13 +84,13 @@ func (f *File) ReadLines() chan string {
 	return ch
 }
 
-func (f *File) AppendLine(s string) {
+func (f *File) AppendLine(s string, args ...interface{}) {
 	if f.session != nil && f.session.err != nil {
 		return
 	}
 	f.open()
 
-	_, err := fmt.Fprintln(f.file, s)
+	_, err := fmt.Fprintln(f.file, f.session.EnvStr(s, args...))
 	if err != nil {
 		f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
 		return
@@ -150,8 +152,8 @@ func (a fileAppender) Ch() chan<- string {
 	return a.file.ch
 }
 
-func (a fileAppender) AppendLine(line string) {
-	a.file.ch <- line
+func (a fileAppender) AppendLine(line string, args ...interface{}) {
+	a.file.ch <- a.file.session.EnvStr(line, args...)
 }
 
 func (a fileAppender) Close() {

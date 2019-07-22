@@ -5,6 +5,8 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+
+	"golang.org/x/xerrors"
 )
 
 var rxDollarEnv = regexp.MustCompile(`\$(?P<Key>[a-zA-Z0-9_]+)`)
@@ -15,6 +17,25 @@ func EnvStr(msg string, args ...interface{}) string {
 			return fmt.Sprintf("%v", args[i])
 		}
 		return os.Getenv(values[1])
+	})
+}
+
+//EnvStr as lash.EnvStr but causes error if format is malformed or sources are missing
+func (s *Session) EnvStr(msg string, args ...interface{}) string {
+	serr := SessionErr{Type: "EnvStr"}
+	return replaceAllStringSubMatchFunc(rxDollarEnv, msg, func(values []string) string {
+		if i, err := strconv.Atoi(values[1]); err == nil {
+			if i < 0 || i >= len(args) {
+				s.SetErr(serr.fail("ArgIndex", xerrors.Errorf("'$%d' is out of range in '%s'", i, msg)))
+				return ""
+			}
+			return fmt.Sprintf("%v", args[i])
+		}
+		v := os.Getenv(values[1])
+		if v == "" {
+			s.SetErr(serr.fail("EnvName", xerrors.Errorf("'$%s' not found in '%s'", values[1], msg)))
+		}
+		return v
 	})
 }
 

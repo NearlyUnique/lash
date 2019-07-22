@@ -26,6 +26,24 @@ func Test_read_whole_file(t *testing.T) {
 	assert.Equal(t, theContent, actualContent)
 }
 
+func Test_open_file_supports_EnvStr(t *testing.T) {
+	const theContent = "any-content"
+	const aFilename = "any-filename"
+
+	require.NoError(t, ioutil.WriteFile(aFilename, []byte(theContent), 0777))
+	defer func() { _ = os.Remove(aFilename) }()
+
+	require.NoError(t, os.Setenv("open_file_start", "any"))
+	session := lash.NewSession()
+
+	actualContent := session.
+		OpenFile("$open_file_start-$0", "filename").
+		String()
+
+	require.NoError(t, session.Err())
+	assert.Equal(t, theContent, actualContent)
+}
+
 func Test_read_file_line_by_line(t *testing.T) {
 	t.Run("read all lines when file is readable", func(t *testing.T) {
 
