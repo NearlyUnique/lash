@@ -11,15 +11,15 @@ import (
 type (
 	// HTTPRequest building request
 	HTTPRequest struct {
-		session  *Session
-		serr     SessionErr
+		scope    *Scope
+		serr     ScopeErr
 		Req      *http.Request
 		statuses []int
 		Client   *http.Client
 	}
 	// HTTPResponse from a request
 	HTTPResponse struct {
-		session  *Session
+		scope    *Scope
 		response *http.Response
 		body     []byte
 	}
@@ -27,25 +27,16 @@ type (
 
 const AnyHTTPStatus = 9999
 
-// Curl wrapper for simple http client, uses the default session
-func Curl(url string, args ...interface{}) *HTTPRequest {
-	s := DefaultSession
-	if s == nil {
-		s = NewSession()
-	}
-	return s.Curl(url, args...)
-}
-
-// Curl for this session
-func (s *Session) Curl(url string, args ...interface{}) *HTTPRequest {
-	serr := SessionErr{Type: "HTTPRequest"}
+// Curl for this scope
+func (s *Scope) Curl(url string, args ...interface{}) *HTTPRequest {
+	serr := ScopeErr{Type: "HTTPRequest"}
 	req, err := http.NewRequest("GET", s.EnvStr(url, args...), nil)
 	if err != nil {
 		s.SetErr(serr.fail("Curl", err))
 	}
 	return &HTTPRequest{
 		serr:     serr,
-		session:  s,
+		scope:    s,
 		Req:      req,
 		statuses: []int{200, 201, 202, 204},
 	}
@@ -83,20 +74,20 @@ func (cmd *HTTPRequest) AllowResponses(status ...int) *HTTPRequest {
 
 // Response the request
 func (cmd *HTTPRequest) Response() *HTTPResponse {
-	r := &HTTPResponse{session: cmd.session}
+	r := &HTTPResponse{scope: cmd.scope}
 	if cmd.Client == nil {
 		cmd.Client = &http.Client{}
 	}
 	var err error
 	r.response, err = cmd.Client.Do(cmd.Req)
 	if err != nil {
-		cmd.session.SetErr(cmd.serr.fail("Send", err))
+		cmd.scope.SetErr(cmd.serr.fail("Send", err))
 		return r
 	}
 
 	if !isInList(r.response.StatusCode, cmd.statuses) {
 		err = fmt.Errorf("status %v not allowed", r.response.StatusCode)
-		cmd.session.SetErr(cmd.serr.fail("Send", err))
+		cmd.scope.SetErr(cmd.serr.fail("Send", err))
 		return r
 	}
 
@@ -104,7 +95,7 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 		defer func() { _ = r.response.Body.Close() }()
 		r.body, err = ioutil.ReadAll(r.response.Body)
 		if err != nil {
-			cmd.session.SetErr(cmd.serr.fail("ReadBody", err))
+			cmd.scope.SetErr(cmd.serr.fail("ReadBody", err))
 		}
 	}
 
@@ -113,13 +104,13 @@ func (cmd *HTTPRequest) Response() *HTTPResponse {
 
 // Header can be set, this overwrites and previous value
 func (cmd *HTTPRequest) Header(name, value string, args ...interface{}) *HTTPRequest {
-	cmd.Req.Header.Set(name, cmd.session.EnvStr(value, args...))
+	cmd.Req.Header.Set(name, cmd.scope.EnvStr(value, args...))
 	return cmd
 }
 
 // AddHeader can be set, this allows multiple values for the same header
 func (cmd *HTTPRequest) AddHeader(name, value string, args ...interface{}) *HTTPRequest {
-	cmd.Req.Header.Add(name, cmd.session.EnvStr(value, args...))
+	cmd.Req.Header.Add(name, cmd.scope.EnvStr(value, args...))
 	return cmd
 }
 
@@ -156,7 +147,7 @@ func (r *HTTPResponse) BodyBytes() []byte {
 }
 
 func (r *HTTPResponse) IsError() bool {
-	return r.session != nil && r.session.err != nil
+	return r.scope != nil && r.scope.err != nil
 }
 
 // BodyJSON puts the response body into the passed in type
@@ -166,7 +157,7 @@ func (r *HTTPResponse) FromJSON(buf interface{}) bool {
 		return false
 	}
 	if err := json.Unmarshal(r.body, buf); err != nil {
-		r.session.SetErr(&SessionErr{Type: "HTTPResponse", Action: "FromJSON", Err: err})
+		r.scope.SetErr(&ScopeErr{Type: "HTTPResponse", Action: "FromJSON", Err: err})
 		return false
 	}
 

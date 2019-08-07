@@ -8,24 +8,24 @@ import (
 type (
 	// RequireEnv vars to the program
 	RequireEnv struct {
-		session *Session
+		scope *Scope
 	}
 	// RequireFlag set to teh program
 	//RequireFlag struct {
-	//	session *Session
+	//	scope *Scope
 	//	Flags   flag.FlagSet
 	//}
 	// RequireArgs to the program
 	RequireArg struct {
-		session *Session
-		Args    []string
+		scope *Scope
+		Args  []string
 	}
 )
 
 // Require that en env var has a value, error contains the description
 func (r RequireEnv) Require(key, description string) RequireEnv {
 	if v := os.Getenv(key); len(v) == 0 {
-		r.session.SetErr(&SessionErr{
+		r.scope.SetErr(&ScopeErr{
 			Type:   "Env",
 			Action: "Require",
 			Err:    fmt.Errorf("missing '%s': %s", key, description),
@@ -36,7 +36,7 @@ func (r RequireEnv) Require(key, description string) RequireEnv {
 
 func (r RequireEnv) Default(key, defaultValue string) RequireEnv {
 	if os.Getenv(key) == "" {
-		r.session.SetErr(&SessionErr{
+		r.scope.SetErr(&ScopeErr{
 			Type:   "Env",
 			Action: "SetDefault",
 			Err:    os.Setenv(key, defaultValue),
@@ -48,7 +48,7 @@ func (r RequireEnv) Default(key, defaultValue string) RequireEnv {
 // Require tests args as per os.Args 0th arg is program name
 func (r RequireArg) Require(index int, description string) RequireArg {
 	if len(r.Args)-1 < index {
-		r.session.SetErr(&SessionErr{
+		r.scope.SetErr(&ScopeErr{
 			Type:   "Arg",
 			Action: "Require",
 			Err:    fmt.Errorf("missing index '%d': %s", index, description),

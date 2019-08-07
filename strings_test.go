@@ -21,29 +21,29 @@ func Test_env_vars_can_be_expanded(t *testing.T) {
 
 	assert.Equal(t, "before value0value1 (value2) value3 after", actual)
 }
-func Test_session_version_caused_missing_values_to_generate_error(t *testing.T) {
+func Test_scope_version_caused_missing_values_to_generate_error(t *testing.T) {
 	require.Empty(t, os.Getenv("no_such_env_var"))
 
-	session := lash.NewSession()
-	session.OnError(lash.Ignore)
+	scope := lash.NewScope()
+	scope.OnError(lash.Ignore)
 
 	t.Run("missing arguments", func(t *testing.T) {
-		session.ClearError()
-		actual := session.EnvStr("causes error $0 $1", 1)
+		scope.ClearError()
+		actual := scope.EnvStr("causes error $0 $1", 1)
 
-		assert.Error(t, session.Err())
+		assert.Error(t, scope.Err())
 		assert.Equal(t, "causes error 1 ", actual)
-		assert.Contains(t, session.ErrorString(), "EnvStr:ArgIndex")
-		assert.Contains(t, session.ErrorString(), "'$1'")
+		assert.Contains(t, scope.Err().Error(), "EnvStr:ArgIndex")
+		assert.Contains(t, scope.Err().Error(), "'$1'")
 	})
 	t.Run("missing env vars", func(t *testing.T) {
-		session.ClearError()
-		actual := session.EnvStr("causes error $no_such_env_var")
+		scope.ClearError()
+		actual := scope.EnvStr("causes error $no_such_env_var")
 
-		assert.Error(t, session.Err())
+		assert.Error(t, scope.Err())
 		assert.Equal(t, "causes error ", actual)
-		assert.Contains(t, session.ErrorString(), "EnvStr:EnvName")
-		assert.Contains(t, session.ErrorString(), "'$no_such_env_var'")
+		assert.Contains(t, scope.Err().Error(), "EnvStr:EnvName")
+		assert.Contains(t, scope.Err().Error(), "'$no_such_env_var'")
 	})
 }
 

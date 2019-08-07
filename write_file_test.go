@@ -17,11 +17,11 @@ func Test_can_append(t *testing.T) {
 		_ = os.Remove(aFilename)
 		defer func() { _ = os.Remove(aFilename) }()
 
-		session := lash.NewSession()
+		scope := lash.NewScope()
 
-		session.OpenFile(aFilename).AppendLine("a line")
+		scope.OpenFile(aFilename).AppendLine("a line")
 
-		require.NoError(t, session.Err())
+		require.NoError(t, scope.Err())
 
 		actual, err := ioutil.ReadFile(aFilename)
 
@@ -34,11 +34,11 @@ func Test_can_append(t *testing.T) {
 		require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
 		defer func() { _ = os.Remove(aFilename) }()
 
-		session := lash.NewSession()
+		scope := lash.NewScope()
 
-		session.OpenFile(aFilename).AppendLine("a line")
+		scope.OpenFile(aFilename).AppendLine("a line")
 
-		require.NoError(t, session.Err())
+		require.NoError(t, scope.Err())
 
 		actual, err := ioutil.ReadFile(aFilename)
 
@@ -51,12 +51,12 @@ func Test_can_append(t *testing.T) {
 		require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
 		defer func() { _ = os.Remove(aFilename) }()
 
-		session := lash.NewSession()
+		scope := lash.NewScope()
 		require.NoError(t, os.Setenv("some_env", "some value"))
 
-		session.OpenFile(aFilename).Truncate().AppendLine("$some_env $0", 99)
+		scope.OpenFile(aFilename).Truncate().AppendLine("$some_env $0", 99)
 
-		require.NoError(t, session.Err())
+		require.NoError(t, scope.Err())
 
 		actual, err := ioutil.ReadFile(aFilename)
 
@@ -70,8 +70,8 @@ func Test_can_truncate_a_file(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
 	defer func() { _ = os.Remove(aFilename) }()
 
-	session := lash.NewSession()
-	session.
+	scope := lash.NewScope()
+	scope.
 		OpenFile(aFilename).
 		Truncate().
 		AppendLine("some line")
@@ -85,9 +85,9 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 	const aFilename = "aFilename.txt"
 	defer func() { _ = os.Remove(aFilename) }()
 
-	session := lash.NewSession()
+	scope := lash.NewScope()
 
-	appender := session.
+	appender := scope.
 		OpenFile(aFilename).
 		Truncate().
 		Appender()

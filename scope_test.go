@@ -18,12 +18,8 @@ func Test_simplify_making_json_data(t *testing.T) {
 		Number: 12.34,
 	}
 
-	session := lash.NewSession()
-	buf := session.AsJson(val)
-	require.NoError(t, session.Err())
-	assert.Equal(t, `{"Text":"some text","Number":12.34}`, string(buf))
-
-	buf = lash.AsJson(val)
-	require.NoError(t, lash.DefaultSession.Err())
+	scope := lash.NewScope()
+	buf := scope.AsJson(val)
+	require.NoError(t, scope.Err())
 	assert.Equal(t, `{"Text":"some text","Number":12.34}`, string(buf))
 }

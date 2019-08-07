@@ -13,15 +13,16 @@ import (
 type (
 	// File reading/writing options
 	File struct {
-		path    string
-		session *Session
-		file    *os.File
-		ch      chan string
+		path  string
+		scope *Scope
+		file  *os.File
+		ch    chan string
 	}
 	fileAppender struct {
 		file *File
 		wg   *sync.WaitGroup
 	}
+	//FileAppender for concurrently appending to a file
 	FileAppender interface {
 		Ch() chan<- string
 		AppendLine(line string, args ...interface{})
@@ -30,30 +31,21 @@ type (
 )
 
 // OpenFile and do something with it
-func OpenRead(name string, args ...interface{}) *File {
-	s := DefaultSession
-	if s == nil {
-		s = NewSession()
-	}
-	return s.OpenFile(name, args...)
-}
-
-// OpenFile and do something with it
-func (s *Session) OpenFile(name string, args ...interface{}) *File {
+func (s *Scope) OpenFile(name string, args ...interface{}) *File {
 	return &File{
-		session: s,
-		path:    s.EnvStr(name, args...),
+		scope: s,
+		path:  s.EnvStr(name, args...),
 	}
 }
 
 // String content
 func (f *File) String() string {
-	if f.session.err != nil {
+	if f.scope.err != nil {
 		return ""
 	}
 	b, err := ioutil.ReadFile(f.path)
 	if err != nil {
-		f.session.SetErr(&SessionErr{Type: "File", Action: "String", Err: xerrors.Errorf("path '%s': %w", f.path, err)})
+		f.scope.SetErr(&ScopeErr{Type: "File", Action: "String", Err: xerrors.Errorf("path '%s': %w", f.path, err)})
 		return ""
 	}
 	return string(b)
@@ -68,7 +60,7 @@ func (f *File) ReadLines() chan string {
 		file, err := os.Open(f.path)
 
 		if err != nil {
-			f.session.SetErr(&SessionErr{Type: "File", Action: "ReadLines", Err: err})
+			f.scope.SetErr(&ScopeErr{Type: "File", Action: "ReadLines", Err: err})
 			return
 		}
 		defer func() { _ = file.Close() }()
@@ -85,14 +77,14 @@ func (f *File) ReadLines() chan string {
 }
 
 func (f *File) AppendLine(s string, args ...interface{}) {
-	if f.session != nil && f.session.err != nil {
+	if f.scope != nil && f.scope.err != nil {
 		return
 	}
 	f.open()
 
-	_, err := fmt.Fprintln(f.file, f.session.EnvStr(s, args...))
+	_, err := fmt.Fprintln(f.file, f.scope.EnvStr(s, args...))
 	if err != nil {
-		f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
+		f.scope.SetErr(&ScopeErr{Type: "File", Action: "AppendLine", Err: err})
 		return
 	}
 }
@@ -100,12 +92,12 @@ func (f *File) AppendLine(s string, args ...interface{}) {
 //Truncate a file to zero length
 func (f *File) Truncate() *File {
 	f.open()
-	err := &SessionErr{Type: "File", Action: "Truncate"}
+	err := &ScopeErr{Type: "File", Action: "Truncate"}
 	err.Err = f.file.Truncate(0)
-	f.session.SetErr(err)
+	f.scope.SetErr(err)
 
 	_, err.Err = f.file.Seek(0, 0)
-	f.session.SetErr(err)
+	f.scope.SetErr(err)
 	return f
 }
 
@@ -133,7 +125,7 @@ func (f *File) Close() {
 	}
 	err := f.file.Close()
 	if err != nil {
-		f.session.SetErr(&SessionErr{Type: "File", Action: "Close", Err: err})
+		f.scope.SetErr(&ScopeErr{Type: "File", Action: "Close", Err: err})
 	}
 }
 
@@ -142,7 +134,7 @@ func (f *File) open() {
 	if f.file == nil {
 		f.file, err = os.OpenFile(f.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			f.session.SetErr(&SessionErr{Type: "File", Action: "AppendLine", Err: err})
+			f.scope.SetErr(&ScopeErr{Type: "File", Action: "AppendLine", Err: err})
 			return
 		}
 	}
@@ -153,7 +145,7 @@ func (a fileAppender) Ch() chan<- string {
 }
 
 func (a fileAppender) AppendLine(line string, args ...interface{}) {
-	a.file.ch <- a.file.session.EnvStr(line, args...)
+	a.file.ch <- a.file.scope.EnvStr(line, args...)
 }
 
 func (a fileAppender) Close() {

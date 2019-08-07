@@ -21,8 +21,8 @@ func EnvStr(msg string, args ...interface{}) string {
 }
 
 //EnvStr as lash.EnvStr but causes error if format is malformed or sources are missing
-func (s *Session) EnvStr(msg string, args ...interface{}) string {
-	serr := SessionErr{Type: "EnvStr"}
+func (s *Scope) EnvStr(msg string, args ...interface{}) string {
+	serr := ScopeErr{Type: "EnvStr"}
 	return replaceAllStringSubMatchFunc(rxDollarEnv, msg, func(values []string) string {
 		if i, err := strconv.Atoi(values[1]); err == nil {
 			if i < 0 || i >= len(args) {

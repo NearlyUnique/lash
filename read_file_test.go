@@ -17,12 +17,12 @@ func Test_read_whole_file(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(aFilename, []byte(theContent), 0777))
 	defer func() { _ = os.Remove(aFilename) }()
 
-	session := lash.NewSession()
-	actualContent := session.
+	scope := lash.NewScope()
+	actualContent := scope.
 		OpenFile(aFilename).
 		String()
 
-	require.NoError(t, session.Err())
+	require.NoError(t, scope.Err())
 	assert.Equal(t, theContent, actualContent)
 }
 
@@ -34,13 +34,13 @@ func Test_open_file_supports_EnvStr(t *testing.T) {
 	defer func() { _ = os.Remove(aFilename) }()
 
 	require.NoError(t, os.Setenv("open_file_start", "any"))
-	session := lash.NewSession()
+	scope := lash.NewScope()
 
-	actualContent := session.
+	actualContent := scope.
 		OpenFile("$open_file_start-$0", "filename").
 		String()
 
-	require.NoError(t, session.Err())
+	require.NoError(t, scope.Err())
 	assert.Equal(t, theContent, actualContent)
 }
 
@@ -53,8 +53,9 @@ func Test_read_file_line_by_line(t *testing.T) {
 		require.NoError(t, ioutil.WriteFile(aFilename, []byte(theContent), 0777))
 		defer func() { _ = os.Remove(aFilename) }()
 
-		ch := lash.
-			OpenRead(aFilename).
+		scope := lash.NewScope()
+		ch := scope.
+			OpenFile(aFilename).
 			ReadLines()
 
 		assert.Equal(t, "line 1", <-ch)
@@ -63,16 +64,16 @@ func Test_read_file_line_by_line(t *testing.T) {
 		_, ok := <-ch
 		assert.False(t, ok)
 	})
-	t.Run("results in closed channel when error, error on the session", func(t *testing.T) {
+	t.Run("results in closed channel when error, error on the scope", func(t *testing.T) {
 		const noSuchFile = "noSuchFile"
-		defer lash.DefaultSession.ClearError()
-
-		ch := lash.
-			OpenRead(noSuchFile).
+		scope := lash.NewScope()
+		scope.OnError(lash.Ignore)
+		ch := scope.
+			OpenFile(noSuchFile).
 			ReadLines()
 
 		_, ok := <-ch
 		assert.False(t, ok)
-		assert.Contains(t, lash.Error(), "File:ReadLines")
+		assert.Contains(t, scope.Err().Error(), "File:ReadLines")
 	})
 }
