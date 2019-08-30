@@ -3,6 +3,7 @@ package lash_test
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -18,7 +19,6 @@ func Test_can_append(t *testing.T) {
 		defer func() { _ = os.Remove(aFilename) }()
 
 		scope := lash.NewScope()
-
 		scope.OpenFile(aFilename).AppendLine("a line")
 
 		require.NoError(t, scope.Err())
@@ -43,10 +43,10 @@ func Test_can_append(t *testing.T) {
 		actual, err := ioutil.ReadFile(aFilename)
 
 		assert.NoError(t, err)
-		assert.Equal(t, string(actual), "line 1\na line\n")
+		assert.Equal(t, "line 1\na line\n", string(actual))
 	})
 	t.Run("append line supports EnvStr", func(t *testing.T) {
-		const aFilename = "aFilename.txt"
+		aFilename := filepath.Join(os.TempDir(), "aFilename.txt")
 
 		require.NoError(t, ioutil.WriteFile(aFilename, []byte("line 1\n"), 0666))
 		defer func() { _ = os.Remove(aFilename) }()

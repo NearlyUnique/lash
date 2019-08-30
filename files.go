@@ -80,7 +80,7 @@ func (f *File) AppendLine(s string, args ...interface{}) {
 	if f.scope != nil && f.scope.err != nil {
 		return
 	}
-	f.open()
+	f.open(openBasic)
 
 	_, err := fmt.Fprintln(f.file, f.scope.EnvStr(s, args...))
 	if err != nil {
@@ -91,13 +91,13 @@ func (f *File) AppendLine(s string, args ...interface{}) {
 
 //Truncate a file to zero length
 func (f *File) Truncate() *File {
-	f.open()
-	err := &ScopeErr{Type: "File", Action: "Truncate"}
-	err.Err = f.file.Truncate(0)
-	f.scope.SetErr(err)
-
-	_, err.Err = f.file.Seek(0, 0)
-	f.scope.SetErr(err)
+	if f.isOpen() {
+		err := &ScopeErr{Type: "File", Action: "Truncate"}
+		// use underlying file close so we can set the correct error context
+		err.Err = f.file.Close()
+		f.scope.SetErr(err)
+	}
+	f.open(openTruncate)
 	return f
 }
 
@@ -129,10 +129,20 @@ func (f *File) Close() {
 	}
 }
 
-func (f *File) open() {
+type openFlag int
+
+const (
+	openBasic    openFlag = openFlag(os.O_RDWR | os.O_CREATE | os.O_APPEND)
+	openTruncate          = openFlag(int(openBasic) | os.O_TRUNC)
+)
+
+func (f *File) isOpen() bool {
+	return f.file != nil
+}
+func (f *File) open(flag openFlag) {
 	var err error
 	if f.file == nil {
-		f.file, err = os.OpenFile(f.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		f.file, err = os.OpenFile(f.path, int(flag), 0666)
 		if err != nil {
 			f.scope.SetErr(&ScopeErr{Type: "File", Action: "AppendLine", Err: err})
 			return
@@ -156,5 +166,6 @@ func (a fileAppender) Close() {
 
 	if a.file != nil {
 		a.file.Close()
+		a.file = nil
 	}
 }
