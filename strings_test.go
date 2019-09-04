@@ -1,6 +1,7 @@
 package lash_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -21,6 +22,7 @@ func Test_env_vars_can_be_expanded(t *testing.T) {
 
 	assert.Equal(t, "before value0value1 (value2) value3 after", actual)
 }
+
 func Test_scope_version_caused_missing_values_to_generate_error(t *testing.T) {
 	require.Empty(t, os.Getenv("no_such_env_var"))
 
@@ -45,6 +47,16 @@ func Test_scope_version_caused_missing_values_to_generate_error(t *testing.T) {
 		assert.Contains(t, scope.Err().Error(), "EnvStr:EnvName")
 		assert.Contains(t, scope.Err().Error(), "'$no_such_env_var'")
 	})
+}
+
+func Test_Println_allows_use_of_EnvStr(t *testing.T) {
+	scope := lash.NewScope()
+	actual := bytes.NewBuffer(nil)
+	scope.SetOutput(actual)
+	os.Setenv("some_value", "the value")
+	scope.Println("any text $some_value here ($0)", 42)
+
+	assert.Equal(t, "any text the value here (42)\n", actual.String())
 }
 
 func Test_when_no_expansions_are_supplied_EnvStr_is_identity_function(t *testing.T) {

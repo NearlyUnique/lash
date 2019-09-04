@@ -68,7 +68,6 @@ func Test_http_requests(t *testing.T) {
 		assert.Equal(t, 42, actual.Count)
 	})
 	t.Run("can limit which http response statuses count as error", func(t *testing.T) {
-
 		testData := []struct {
 			name    string
 			status  int
@@ -87,7 +86,7 @@ func Test_http_requests(t *testing.T) {
 			currentStatus = td.status
 
 			scope := lash.NewScope()
-			scope.OnError(lash.Warn)
+			scope.OnError(lash.Ignore)
 			resp := scope.
 				Curl(ts.URL+"/any").
 				AllowResponses(200, 404).

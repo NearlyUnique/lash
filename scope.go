@@ -3,14 +3,16 @@ package lash
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 )
 
 type (
 	// Scope for lash
 	Scope struct {
-		err   error
-		onErr OnErrorFunc
+		err            error
+		onErr          OnErrorFunc
+		stdout, stderr io.Writer
 	}
 	// ScopeErr an error that occurred during a scope operation
 	ScopeErr struct {
@@ -22,17 +24,15 @@ type (
 	OnErrorFunc func(error)
 )
 
-var (
-	// DefaultOnError default behaviour for errors
-	DefaultOnError = Terminate
-)
-
 // NewScope for lash, you can have as many as you want, they are separate
 // the default OnError handler is Terminate
 func NewScope() *Scope {
-	return &Scope{
-		onErr: DefaultOnError,
+	s := Scope{
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
+	s.onErr = s.Terminate
+	return &s
 }
 
 // IsError for this scope
@@ -104,27 +104,44 @@ func (s *Scope) Args() RequireArg {
 		scope: s,
 		Args:  os.Args,
 	}
+}
 
+// SetOutput for Println etc. defaults to os.Stdout
+func (s *Scope) SetOutput(writer io.Writer) *Scope {
+	s.stdout = writer
+	return s
+}
+
+// Println to stdout as set by scope.SetOutput
+func (s *Scope) Println(msg string, args ...interface{}) {
+	_, _ = fmt.Fprintf(s.stdout, s.EnvStr(msg, args...)+"\n")
+}
+
+// SetErrOutput for Error writing defaults to os.Stderr
+func (s *Scope) SetErrOutput(writer io.Writer) *Scope {
+	s.stderr = writer
+	return s
 }
 
 // Terminate on error, with error code 1
-func Terminate(err error) {
+func (s *Scope) Terminate(err error) {
 	if err == nil {
 		return
 	}
-	_, _ = fmt.Fprintln(os.Stderr, err.Error())
+	_, _ = fmt.Fprintln(s.stderr, err.Error())
 	os.Exit(1)
 }
 
-// Ignore errors, do nothing
-func Ignore(err error) {}
-
 // Warn about to standard out errors but continue
-func Warn(err error) {
+func (s *Scope) Warn(err error) {
 	if err == nil {
 		return
 	}
-	_, _ = fmt.Fprintln(os.Stderr, err.Error())
+	_, _ = fmt.Fprintln(s.stderr, err.Error())
+}
+
+// Ignore on error
+func Ignore(error) {
 }
 
 // fail sets the error action and details
