@@ -99,7 +99,7 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 
 	go func() {
 		// both are equivalent
-		appender.Ch() <- "any line"
+		appender.Ch() <- t.Name()
 		appender.AppendLine("last line $some_env ($0)", "a string")
 		wg.Done()
 	}()
@@ -110,5 +110,7 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 
 	actual, err := ioutil.ReadFile(aFilename)
 	assert.NoError(t, err)
-	assert.Equal(t, "any line\nlast line env value (a string)\n", string(actual))
+	assert.Equal(t, t.Name()+"\nlast line env value (a string)\n", string(actual))
+	// try really hard to remove this test file
+	_ = os.Remove(aFilename)
 }

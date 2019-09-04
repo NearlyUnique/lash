@@ -2,6 +2,7 @@ package lash
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -49,6 +50,19 @@ func (f *File) String() string {
 		return ""
 	}
 	return string(b)
+}
+
+// AsJSON reads the file into v (a pointer to a struct)
+func (f *File) AsJSON(v interface{}) {
+	b, err := ioutil.ReadFile(f.path)
+	if err != nil {
+		f.scope.SetErr(&ScopeErr{Type: "File", Action: "AsJSON_read", Err: xerrors.Errorf("path '%s': %w", f.path, err)})
+		return
+	}
+	err = json.Unmarshal(b, v)
+	if err != nil {
+		f.scope.SetErr(&ScopeErr{Type: "File", Action: "AsJSON_unmarshal", Err: xerrors.Errorf("path '%s': %w", f.path, err)})
+	}
 }
 
 // ReadLines read all lines via a channel one line at a lime
