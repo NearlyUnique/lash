@@ -114,3 +114,47 @@ func Test_can_append_concurrently_via_channel(t *testing.T) {
 	// try really hard to remove this test file
 	_ = os.Remove(aFilename)
 }
+
+func Test_can_delete_a_file(t *testing.T) {
+	filename := tempPathname()
+	scope := lash.NewScope()
+	scope.OpenFile(filename).AppendLine("any text").Close()
+
+	_, err := os.Stat(filename)
+	assert.NoError(t, err)
+
+	scope.OpenFile(filename).Delete()
+
+	_, err = os.Stat(filename)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func Test_creating_directories(t *testing.T) {
+	aPath := tempPathname()
+	scope := lash.NewScope()
+
+	scope.OpenFile(aPath).Mkdir()
+
+	assertDirExists(t, aPath)
+}
+
+func Test_when_copying_files_the_permissions_are_preserved(t *testing.T) {
+	src, dest := tempPathname(), tempPathname()
+	removeSrc := writeFile(t, src, "any-content")
+	scope := lash.NewScope().OnError(requireNoError(t))
+
+	scope.OpenFile(src).CopyTo(dest)
+
+	assertFileExists(t, src)
+	assertFileExists(t, dest)
+
+	stat := func(filename string) os.FileMode {
+		s, err := os.Stat(filename)
+		require.NoError(t, err)
+		return s.Mode()
+	}
+	assert.Equal(t, stat(src), stat(dest))
+
+	removeSrc()
+	os.Remove(dest)
+}

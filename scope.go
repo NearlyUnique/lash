@@ -69,6 +69,13 @@ func (s *Scope) SetErr(err error) {
 	}
 }
 
+func (s *Scope) setErr(t, action string, err error) {
+	if err == nil {
+		return
+	}
+	s.SetErr(&ScopeErr{Type: t, Action: action, Err: err})
+}
+
 // ClearError removes the raw scope error if any
 func (s *Scope) ClearError() {
 	s.err = nil

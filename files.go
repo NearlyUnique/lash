@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"golang.org/x/xerrors"
@@ -90,17 +92,17 @@ func (f *File) ReadLines() chan string {
 	return ch
 }
 
-func (f *File) AppendLine(s string, args ...interface{}) {
+func (f *File) AppendLine(s string, args ...interface{}) *File {
 	if f.scope != nil && f.scope.err != nil {
-		return
+		return f
 	}
 	f.open(openBasic)
 
 	_, err := fmt.Fprintln(f.file, f.scope.EnvStr(s, args...))
 	if err != nil {
 		f.scope.SetErr(&ScopeErr{Type: "File", Action: "AppendLine", Err: err})
-		return
 	}
+	return f
 }
 
 //Truncate a file to zero length
@@ -155,23 +157,44 @@ func (f *File) isOpen() bool {
 }
 func (f *File) open(flag openFlag) {
 	var err error
-	if f.file == nil {
-		f.file, err = os.OpenFile(f.path, int(flag), 0666)
-		if err != nil {
-			f.scope.SetErr(&ScopeErr{Type: "File", Action: "AppendLine", Err: err})
-			return
-		}
+	if f.file != nil {
+		return
 	}
+	f.file, err = os.OpenFile(f.path, int(flag), 0666)
+	f.scope.setErr("File", "AppendLine", err)
 }
 
+// Delete the file
+func (f *File) Delete() {
+	f.Close()
+	err := os.Remove(f.path)
+	f.scope.setErr("File", "Delete", err)
+}
+
+// Mkdir creates the full path to ensure the supplied folder exists
+func (f *File) Mkdir() {
+	err := os.MkdirAll(f.path, 0666)
+	f.scope.setErr("File", "Mkdir", err)
+}
+
+// CopyTo a destination, returns the destination
+func (f *File) CopyTo(dest string) *File {
+	err := copyFile(f.path, dest)
+	f.scope.setErr("File", "Copy", err)
+	return f.scope.OpenFile(dest)
+}
+
+// Ch the underlying channel for appending lines to
 func (a fileAppender) Ch() chan<- string {
 	return a.file.ch
 }
 
+// AppendLine wraps sending to the append channel, Ch
 func (a fileAppender) AppendLine(line string, args ...interface{}) {
 	a.file.ch <- a.file.scope.EnvStr(line, args...)
 }
 
+// Close the underlying channel and the target file
 func (a fileAppender) Close() {
 	if a.file.ch != nil {
 		close(a.file.ch)
@@ -182,4 +205,35 @@ func (a fileAppender) Close() {
 		a.file.Close()
 		a.file = nil
 	}
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	tmp, err := ioutil.TempFile(filepath.Dir(dst), "")
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(tmp, in)
+	if err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return err
+	}
+	perms, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	if err = os.Chmod(tmp.Name(), perms.Mode()); err != nil {
+		os.Remove(tmp.Name())
+		return err
+	}
+	return os.Rename(tmp.Name(), dst)
 }
